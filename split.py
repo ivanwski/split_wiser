@@ -8,7 +8,7 @@ from categories import CATEGORY_LIST, subcategories_for
 st.set_page_config(page_title="Split Casal", page_icon="💰", layout="centered")
 db.init_db()
 
-st.title("💰 Split Wiser")
+st.title("💰 Split Casal")
 
 
 # ---------- GESTÃO DE GRUPOS ----------
@@ -60,18 +60,20 @@ tab1, tab2, tab3, tab4 = st.tabs(["📊 Saldo", "📋 Histórico", "➕ Novo gas
 # ---------- HELPERS ----------
 
 def date_range_filter(key_prefix):
-    """Filtro de período reutilizável. Padrão: ano corrente inteiro."""
+    """Filtro de período reutilizável. Padrão: tudo (sem filtro de data)."""
     today = date.today()
     default_start = date(today.year, 1, 1)
     default_end = date(today.year, 12, 31)
 
     period = st.radio(
         "Período",
-        ["Ano corrente", "Personalizado"],
+        ["Tudo", "Ano corrente", "Personalizado"],
         horizontal=True,
         key=f"{key_prefix}_period_mode",
     )
-    if period == "Ano corrente":
+    if period == "Tudo":
+        return None, None
+    elif period == "Ano corrente":
         return default_start, default_end
     else:
         c1, c2 = st.columns(2)
