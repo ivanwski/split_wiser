@@ -195,15 +195,19 @@ with tab2:
 
 # ---------- TAB 3: NOVO GASTO ----------
 with tab3:
+    if st.session_state.get("expense_just_saved"):
+        st.success(st.session_state.expense_just_saved)
+        del st.session_state["expense_just_saved"]
+
     col1, col2 = st.columns(2)
     with col1:
-        expense_date = st.date_input("Data", value=date.today())
-        amount = st.number_input("Valor total (R$)", min_value=0.0, step=1.0, format="%.2f")
+        expense_date = st.date_input("Data", value=date.today(), key="new_expense_date")
+        amount = st.number_input("Valor total (R$)", min_value=0.0, step=1.0, format="%.2f", key="new_expense_amount")
     with col2:
-        category = st.selectbox("Categoria", CATEGORY_LIST)
-        subcategory = st.selectbox("Subcategoria", subcategories_for(category))
+        category = st.selectbox("Categoria", CATEGORY_LIST, key="new_expense_category")
+        subcategory = st.selectbox("Subcategoria", subcategories_for(category), key="new_expense_subcategory")
 
-    description = st.text_input("Descrição", placeholder="Ex: Mercado do mês, Uber, Restaurante...")
+    description = st.text_input("Descrição", placeholder="Ex: Mercado do mês, Uber, Restaurante...", key="new_expense_description")
 
     st.divider()
 
@@ -268,7 +272,7 @@ with tab3:
                     st.warning(f"Passou {abs(pct_diff):.0f}% de 100%")
             splits = {p: round(amount * pcts[p] / 100, 2) for p in PARTICIPANTS}
 
-    notes = st.text_input("Observações (opcional)")
+    notes = st.text_input("Observações (opcional)", key="new_expense_notes")
 
     st.divider()
     if st.button("Salvar gasto", use_container_width=True, type="primary"):
@@ -287,7 +291,19 @@ with tab3:
                 st.error(e)
         else:
             db.add_expense(selected_id, expense_date, description, category, subcategory, amount, payers, splits, notes)
-            st.success(f"Gasto de R$ {amount:.2f} salvo!")
+
+            # Limpa os campos do formulário (widgets fora de st.form não limpam sozinhos)
+            keys_to_clear = [
+                "new_expense_amount", "new_expense_description", "new_expense_notes",
+                "single_payer",
+            ] + [f"payer_{p}" for p in PARTICIPANTS] \
+              + [f"split_val_{p}" for p in PARTICIPANTS] \
+              + [f"split_pct_{p}" for p in PARTICIPANTS]
+            for k in keys_to_clear:
+                if k in st.session_state:
+                    del st.session_state[k]
+
+            st.session_state.expense_just_saved = f"Gasto de R$ {amount:.2f} salvo!"
             st.rerun()
 
 
