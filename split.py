@@ -8,7 +8,7 @@ from categories import CATEGORY_LIST, subcategories_for
 st.set_page_config(page_title="Split Casal", page_icon="💰", layout="centered")
 db.init_db()
 
-st.title("💰 Split Casal")
+st.title("💰 Split Wiser")
 
 
 # ---------- GESTÃO DE GRUPOS ----------
