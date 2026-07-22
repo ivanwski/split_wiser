@@ -98,6 +98,17 @@ def build_long_df(df):
     return pd.DataFrame(rows)
 
 
+def global_settlement_text(net_totals: dict):
+    """Gera o texto de quem deve pra quem a partir de um dict {pessoa: saldo liquido}."""
+    creditors = {p: v for p, v in net_totals.items() if v > 0.01}
+    debtors = {p: -v for p, v in net_totals.items() if v < -0.01}
+    if not creditors and not debtors:
+        return "Contas equilibradas 🎉"
+    parts = [f"{p} tem a receber R\\$ {v:.2f}" for p, v in creditors.items()]
+    parts += [f"{p} deve R\\$ {v:.2f}" for p, v in debtors.items()]
+    return " • ".join(parts)
+
+
 # ---------- TAB 1: SALDO ----------
 with tab1:
     date_from, date_to = date_range_filter("saldo")
@@ -185,7 +196,12 @@ with tab2:
                     st.caption(f"{row['category']} › {row['subcategory']} • {row['expense_date']}")
                     st.caption(f"Pago por: {payers_str}")
                 with c2:
-                    st.write(f"R$ {row['amount']:.2f}")
+                    original_currency = row.get("original_currency", "BRL")
+                    if original_currency and original_currency != "BRL":
+                        st.write(f"{original_currency} {row['original_amount']:.2f}")
+                        st.caption(f"(R\\$ {row['amount']:.2f} a {row['exchange_rate']:.2f})")
+                    else:
+                        st.write(f"R$ {row['amount']:.2f}")
                     st.caption(f"Divisão: {splits_str}")
                 with c3:
                     if st.button("🗑️", key=f"del_{row['id']}"):
@@ -202,7 +218,23 @@ with tab3:
     col1, col2 = st.columns(2)
     with col1:
         expense_date = st.date_input("Data", value=date.today(), key="new_expense_date")
-        amount = st.number_input("Valor total (R$)", min_value=0.0, step=1.0, format="%.2f", key="new_expense_amount")
+        currency = st.selectbox("Moeda", ["BRL", "EUR", "USD", "Outra"], key="new_expense_currency")
+        if currency == "Outra":
+            currency = st.text_input("Qual moeda?", value="", key="new_expense_currency_other", placeholder="Ex: GBP, ARS...")
+        original_amount = st.number_input(
+            f"Valor total ({currency or 'BRL'})", min_value=0.0, step=1.0, format="%.2f", key="new_expense_amount"
+        )
+        if currency and currency != "BRL":
+            exchange_rate = st.number_input(
+                f"Taxa de câmbio ({currency} → BRL)", min_value=0.0001, step=0.01, format="%.4f",
+                value=1.0, key="new_expense_rate",
+            )
+            amount = round(original_amount * exchange_rate, 2)
+            if original_amount > 0:
+                st.caption(f"≈ R$ {amount:.2f}")
+        else:
+            exchange_rate = 1.0
+            amount = original_amount
     with col2:
         category = st.selectbox("Categoria", CATEGORY_LIST, key="new_expense_category")
         subcategory = st.selectbox("Subcategoria", subcategories_for(category), key="new_expense_subcategory")
@@ -290,11 +322,15 @@ with tab3:
             for e in errors:
                 st.error(e)
         else:
-            db.add_expense(selected_id, expense_date, description, category, subcategory, amount, payers, splits, notes)
+            db.add_expense(
+                selected_id, expense_date, description, category, subcategory, amount, payers, splits, notes,
+                original_amount=original_amount, original_currency=currency, exchange_rate=exchange_rate,
+            )
 
             # Limpa os campos do formulário (widgets fora de st.form não limpam sozinhos)
             keys_to_clear = [
                 "new_expense_amount", "new_expense_description", "new_expense_notes",
+                "new_expense_currency", "new_expense_currency_other", "new_expense_rate",
                 "single_payer",
             ] + [f"payer_{p}" for p in PARTICIPANTS] \
               + [f"split_val_{p}" for p in PARTICIPANTS] \
@@ -313,10 +349,13 @@ with tab4:
     date_from, date_to = date_range_filter("consol")
 
     total_all = 0.0
+    net_totals = {}
     rows_summary = []
     for g in groups:
         g_balance = db.compute_balance(g["members"], group_id=g["id"], date_from=date_from, date_to=date_to)
         total_all += g_balance["total_spent"]
+        for p, v in g_balance["net_balance"].items():
+            net_totals[p] = net_totals.get(p, 0.0) + v
         rows_summary.append({
             "Grupo": g["name"],
             "Participantes": ", ".join(g["members"]),
@@ -325,6 +364,15 @@ with tab4:
         })
 
     st.metric("Total gasto em todos os grupos", f"R$ {total_all:.2f}")
+
+    st.divider()
+    st.subheader("Quem deve pra quem (todos os grupos somados)")
+    summary_text = global_settlement_text(net_totals)
+    if "equilibradas" in summary_text:
+        st.success(summary_text)
+    else:
+        st.warning(f"**{summary_text}**")
+
     st.divider()
 
     for row in rows_summary:

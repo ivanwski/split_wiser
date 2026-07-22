@@ -67,7 +67,8 @@ def update_group_members(group_id, members: list):
 
 # ---------------- API pública: despesas ----------------
 
-def add_expense(group_id, expense_date, description, category, subcategory, amount, payers: dict, splits: dict, notes=""):
+def add_expense(group_id, expense_date, description, category, subcategory, amount, payers: dict, splits: dict, notes="",
+                 original_amount=None, original_currency="BRL", exchange_rate=1):
     supabase.table("expenses").insert({
         "group_id": group_id,
         "expense_date": str(expense_date),
@@ -75,6 +76,9 @@ def add_expense(group_id, expense_date, description, category, subcategory, amou
         "category": category,
         "subcategory": subcategory,
         "amount": amount,
+        "original_amount": original_amount if original_amount is not None else amount,
+        "original_currency": original_currency,
+        "exchange_rate": exchange_rate,
         "payers": payers,
         "splits": splits,
         "notes": notes,
@@ -156,8 +160,8 @@ def compute_balance(participants, group_id=None, date_from=None, date_to=None, c
         if not creditors and not debtors:
             settlement = "Contas equilibradas 🎉"
         else:
-            parts = [f"{p} tem a receber R$ {v:.2f}" for p, v in creditors.items()]
-            parts += [f"{p} deve R$ {v:.2f}" for p, v in debtors.items()]
+            parts = [f"{p} tem a receber R\\$ {v:.2f}" for p, v in creditors.items()]
+            parts += [f"{p} deve R\\$ {v:.2f}" for p, v in debtors.items()]
             settlement = " • ".join(parts)
 
     return {

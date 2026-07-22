@@ -10,8 +10,8 @@ CATEGORIES = {
     "Lazer": ["Geral"],
     "Saúde": ["Médico", "Plano de Saúde", "Farmácia", "Outros"],
     "Discricionário": ["Presentes", "Roupas", "Eletrônicos", "Outros"],
-    "Pet": ["Alimentação", "Brinquedos", "Acessórios", "Saúde", "Outros"],
-    "Outros gastos": ["Geral"],
+    "Pet": ["Alimentação", "Brinquedos", "Acessórios", "Saúde", "Higiene", "Outros"],
+    "Outros gastos": ["Geral", "Acerto de contas"],
 }
 
 CATEGORY_LIST = list(CATEGORIES.keys())
